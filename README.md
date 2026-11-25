@@ -4,7 +4,7 @@ Product questions and answers with moderation and customer attribution for Larav
 
 ## Features
 
-- Ask questions against any Eloquent product model.
+- Ask questions against any persisted Eloquent product model.
 - Optional polymorphic asker/customer association.
 - Add answers with optional polymorphic responder association.
 - Pending, approved and rejected moderation states.
@@ -43,7 +43,7 @@ $question = $manager->ask(
 );
 ```
 
-Questions are pending and unpublished by default.
+The product and optional asker must already be persisted. Questions are pending and unpublished by default.
 
 ## Add an answer
 
@@ -55,7 +55,7 @@ $answer = $manager->answer(
 );
 ```
 
-Answers are also pending and unpublished by default.
+The question and optional responder must already be persisted. Answers are also pending and unpublished by default.
 
 ## Moderate content
 
@@ -63,10 +63,10 @@ Answers are also pending and unpublished by default.
 $manager->moderateQuestion($question, 'approved');
 $manager->moderateAnswer($answer, 'approved');
 
-// Other supported status: rejected
+// Other default supported statuses: pending, rejected
 ```
 
-Only approved and published questions are returned by `publishedForProduct()`.
+The `allowed_statuses` configuration must be a non-empty array of unique, non-empty strings no longer than 30 characters. It must include `approved`, and `default_status` must be one of the allowed values.
 
 ## Display approved Q&A
 
@@ -81,8 +81,6 @@ The query eager-loads only approved, published answers.
 - The package provides persistence and moderation primitives, not public routes, controllers, admin screens, notifications, spam detection, rate limiting, or frontend components.
 - Product, asker and responder are polymorphic Eloquent models. Integrate with your product/customer/user models in the host application.
 - Enforce authorization, request validation, abuse prevention, tenant scoping and content sanitization in your application.
-- `status` is validated against the configured `allowed_statuses` list. The default statuses are `pending`, `approved`, and `rejected`.
-- The package does not implement voting, accepted answers, product-specific staff permissions, or verified-purchase checks.
 - Deleting a question deletes its answers in a transaction. Configure database foreign keys appropriately for your target driver.
 - The package uses text fields for content; escape output in your views to prevent cross-site scripting.
 

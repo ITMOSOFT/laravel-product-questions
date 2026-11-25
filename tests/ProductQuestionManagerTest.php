@@ -2,8 +2,8 @@
 
 namespace ItmoSoft\ProductQuestions\Tests;
 
+use InvalidArgumentException;
 use ItmoSoft\ProductQuestions\Models\ProductAnswer;
-use ItmoSoft\ProductQuestions\Models\ProductQuestion;
 use ItmoSoft\ProductQuestions\ProductQuestionManager;
 use ItmoSoft\ProductQuestions\Tests\Models\Product;
 use ItmoSoft\ProductQuestions\Tests\Models\User;
@@ -63,5 +63,79 @@ class ProductQuestionManagerTest extends TestCase
 
         $this->assertDatabaseCount('itmosoft_product_questions', 0);
         $this->assertDatabaseCount('itmosoft_product_answers', 0);
+    }
+
+    public function test_ask_rejects_an_unsaved_product(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Product must be persisted');
+
+        app(ProductQuestionManager::class)->ask(new Product(), 'Is assembly included?');
+    }
+
+    public function test_answer_rejects_an_unsaved_question(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Question must be persisted');
+
+        app(ProductQuestionManager::class)->answer(
+            new \ItmoSoft\ProductQuestions\Models\ProductQuestion(),
+            'An answer.'
+        );
+    }
+
+    public function test_ask_rejects_an_unsaved_asker(): void
+    {
+        $product = Product::create(['name' => 'Desk']);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Asker must be persisted');
+
+        app(ProductQuestionManager::class)->ask($product, 'Is assembly included?', new User());
+    }
+
+    public function test_manager_rejects_a_default_status_not_in_the_allowlist(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('default_status must be included');
+
+        new ProductQuestionManager([
+            'default_status' => 'draft',
+            'allowed_statuses' => ['pending', 'approved', 'rejected'],
+        ]);
+    }
+
+    public function test_manager_rejects_invalid_allowed_status_configuration(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('non-empty array');
+
+        new ProductQuestionManager([
+            'default_status' => 'pending',
+            'allowed_statuses' => 'pending,approved',
+        ]);
+    }
+
+    public function test_manager_rejects_status_values_longer_than_database_column(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('at most 30 characters');
+
+        new ProductQuestionManager([
+            'default_status' => 'pending',
+            'allowed_statuses' => ['pending', 'approved', str_repeat('x', 31)],
+        ]);
+    }
+
+    public function test_moderation_rejects_a_status_outside_the_allowlist(): void
+    {
+        $product = Product::create(['name' => 'Desk']);
+        $manager = app(ProductQuestionManager::class);
+        $question = $manager->ask($product, 'Is assembly included?');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported moderation status [archived]');
+
+        $manager->moderateQuestion($question, 'archived');
     }
 }
